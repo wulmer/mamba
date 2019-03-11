@@ -5,6 +5,7 @@ authors = ["Wolf Vollprecht <w.vollprecht@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+libsolv = { git = "https://github.com/ignatenkobrain/libsolv-rs" }
 reqwest = "*"
 serde = "*"
 serde_json = "1.0"

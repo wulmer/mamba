@@ -81,38 +81,53 @@ impl Drop for Pool {
 
 pub struct Repository<'pool> {
     ptr: *mut raw::Repo,
-    _marker: PhantomData<&'pool Pool>,
+    pool: &'pool Pool,
 }
 
-pub struct Solvable {
-    id: c_int
+pub struct Solvable<'pool> {
+    id: c_int,
+    pool: &'pool Pool
 }
 
-impl Solvable {
-    pub fn to_string(&self, pool: &Pool) -> CString {
+impl<'pool> Solvable<'pool> {
+    pub fn to_string(&self) -> String {
         unsafe {
-            return CString::from_raw(raw::pool_id2str(pool.ptr, self.id));
+            CStr::from_ptr(raw::pool_id2str(self.pool.ptr, self.id)).to_string_lossy().into_owned()
+            // return CStr::from_ptr(raw::pool_id2str(self.pool.ptr, self.id));
         }
+    }
+    pub fn set_name(&self, name: &str) -> Result<()> {
+        let cname = CString::new(name)?;
+        unsafe {
+            // pool->solvables[xs->id].name = raw::pool_str2id(self.pool.ptr, cname.as_ptr(), 1);
+        }
+        return Ok(());
+    }
+}
+
+impl<'pool> Drop for Solvable<'pool> {
+    fn drop(&mut self) {
+        unsafe {}
     }
 }
 
 impl<'pool> Repository<'pool> {
-    pub fn new(pool: &mut Pool, name: &str) -> Result<Repository<'pool>> {
+    pub fn new(pool: &'pool Pool, name: &str) -> Result<Repository<'pool>> {
         let name = CString::new(name)?;
         unsafe {
             let repo = raw::repo_create(pool.ptr, name.as_ptr());
             Ok(Repository {
                 ptr: repo,
-                _marker: PhantomData,
+                pool: pool,
             })
         }
     }
 
-    pub fn add_solvable(&mut self) -> Solvable {
+    pub fn add_solvable(&mut self) -> Result<Solvable<'pool>> {
         unsafe {
-            return Solvable {id: raw::repo_add_solvable(self.ptr) };
+            let new_id = raw::repo_add_solvable(self.ptr);
+            return Ok(Solvable {id: new_id, pool: &self.pool });
         }
-        // return true;
     }
 
     // Read repo from .solv file and add it to pool

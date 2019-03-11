@@ -17,9 +17,9 @@ extern "C" {
     pub fn repo_create(pool: *mut Pool, name: *const c_char) -> *mut Repo;
     pub fn repo_free(repo: *mut Repo, reuseids: c_int);
 
-    pub fn pool_id2str(pool: *mut Pool, id: c_int) -> *mut c_char;
+	pub fn pool_str2id(pool: *mut Pool, name: *const c_char, create: c_int) -> c_int;
+    pub fn pool_id2str(pool: *mut Pool, id: c_int) -> *const c_char;
 }
-
 pub enum Pool {}
 
 pub enum Repo {}
