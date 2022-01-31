@@ -139,7 +139,7 @@ namespace mamba
         return *m_canonical_name;
     }
 
-    std::string Channel::base_url() const
+    std::string Channel::base_url(bool with_credential) const
     {
         if (name() == UNKNOWN_CHANNEL)
         {
@@ -147,7 +147,14 @@ namespace mamba
         }
         else
         {
-            return detail::concat_scheme_url(scheme(), join_url(location(), name()));
+            if (with_credential && auth())
+            {
+                return detail::concat_scheme_url(scheme(), concat(*auth(), "@", join_url(location(), name())));
+			}
+            else
+			{
+                return detail::concat_scheme_url(scheme(), join_url(location(), name()));
+            }
         }
     }
 

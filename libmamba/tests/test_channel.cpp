@@ -103,6 +103,49 @@ namespace mamba
         ChannelContext::instance().reset();
     }
 
+    TEST(ChannelContext, channel_alias_with_credentials)
+    {
+        // ChannelContext builds its custom channels with
+        // make_simple_channel
+        auto& ctx = Context::instance();
+        ctx.channel_alias = "https://user:token@mydomain.com/channels/";
+        ChannelContext::instance().reset();
+
+        const auto& ch = ChannelContext::instance().get_channel_alias();
+        EXPECT_EQ(ch.scheme(), "https");
+        EXPECT_EQ(ch.auth(), "user:token");
+        EXPECT_EQ(ch.location(), "mydomain.com/channels");
+        EXPECT_EQ(ch.name(), "<alias>");
+        EXPECT_EQ(ch.canonical_name(), "<alias>");
+        EXPECT_EQ(ch.base_url(), "https://mydomain.com/channels/<alias>");
+        EXPECT_EQ(ch.base_url(false), "https://mydomain.com/channels/<alias>");
+        EXPECT_EQ(ch.base_url(true), "https://user:token@mydomain.com/channels/<alias>");
+
+        const auto& custom = ChannelContext::instance().get_custom_channels();
+
+        auto it = custom.find("pkgs/main");
+        EXPECT_NE(it, custom.end());
+        EXPECT_EQ(it->second.name(), "pkgs/main");
+        EXPECT_EQ(it->second.location(), "repo.anaconda.com");
+        EXPECT_EQ(it->second.canonical_name(), "defaults");
+
+        std::string value = "conda-forge";
+        const Channel& c = make_channel(value);
+        EXPECT_EQ(c.scheme(), "https");
+        EXPECT_EQ(c.auth(), "user:token");
+        EXPECT_EQ(c.location(), "mydomain.com/channels");
+        EXPECT_EQ(c.name(), "conda-forge");
+        EXPECT_EQ(c.canonical_name(), "conda-forge");
+        // EXPECT_EQ(c.url(), "conda-forge");
+        EXPECT_EQ(c.base_url(), "https://mydomain.com/channels/conda-forge");
+        EXPECT_EQ(c.base_url(false), "https://mydomain.com/channels/conda-forge");
+        EXPECT_EQ(c.base_url(true), "https://user:token@mydomain.com/channels/conda-forge");
+        EXPECT_EQ(c.platforms(), std::vector<std::string>({ platform, "noarch" }));
+
+        ctx.channel_alias = "https://conda.anaconda.org";
+        ChannelContext::instance().reset();
+    }
+
     TEST(ChannelContext, custom_channels)
     {
         // ChannelContext builds its custom channels with
@@ -112,6 +155,7 @@ namespace mamba
         ctx.custom_channels = {
             { "test_channel", "file:///tmp" },
             { "some_channel", "https://conda.mydomain.xyz/" },
+            { "channel_with_auth", "https://user:token@some.server/" },
         };
         ChannelContext::instance().reset();
 
@@ -146,6 +190,24 @@ namespace mamba
                 { std::string("https://conda.mydomain.xyz/some_channel/") + platform,
                   std::string("https://conda.mydomain.xyz/some_channel/noarch") });
             EXPECT_EQ(c.urls(), exp_urls);
+        }
+
+        {
+            std::string value = "channel_with_auth";
+            const Channel& c = make_channel(value);
+            EXPECT_EQ(c.scheme(), "https");
+            EXPECT_EQ(c.auth(), "user:token");
+            EXPECT_EQ(c.location(), "some.server");
+            EXPECT_EQ(c.name(), "channel_with_auth");
+            EXPECT_EQ(c.canonical_name(), "channel_with_auth");
+            EXPECT_EQ(c.platforms(), std::vector<std::string>({ platform, "noarch" }));
+            std::vector<std::string> exp_urls(
+                { std::string("https://user:token@some.server/channel_with_auth/") + platform,
+                  std::string("https://user:token@some.server/channel_with_auth/noarch") });
+            EXPECT_EQ(c.urls(), exp_urls);
+            EXPECT_EQ(c.base_url(), "https://some.server/channel_with_auth");
+            EXPECT_EQ(c.base_url(false), "https://some.server/channel_with_auth");
+            EXPECT_EQ(c.base_url(true), "https://user:token@some.server/channel_with_auth");
         }
 
         ctx.channel_alias = "https://conda.anaconda.org";
@@ -297,6 +359,37 @@ namespace mamba
         EXPECT_EQ(c2->urls(), exp_urls2);
 
         EXPECT_EQ(c2->name(), "stable/channel");
+        EXPECT_EQ(c2->location(), "mamba.com");
+        EXPECT_EQ(c2->scheme(), "https");
+
+        ctx.custom_channels.clear();
+        ChannelContext::instance().reset();
+    }
+
+    TEST(ChannelContext, custom_default_channels_with_auth)
+    {
+        auto& ctx = Context::instance();
+        ctx.default_channels
+            = { "https://user:token@mamba.com/test/channel", "https://mamba.com/stable/channel" };
+        ChannelContext::instance().reset();
+
+        auto x = get_channels({ "defaults" });
+        const Channel* c1 = x[0];
+        const Channel* c2 = x[1];
+
+        EXPECT_EQ(c1->name(), "test/channel");
+        std::vector<std::string> exp_urls(
+            { std::string("https://user:token@mamba.com/test/channel/") + platform,
+              std::string("https://user:token@mamba.com/test/channel/noarch") });
+        EXPECT_EQ(c1->urls(), exp_urls);
+        std::vector<std::string> exp_urls2(
+            { std::string("https://mamba.com/stable/channel/") + platform,
+              std::string("https://mamba.com/stable/channel/noarch") });
+        EXPECT_EQ(c2->urls(), exp_urls2);
+
+        EXPECT_EQ(c1->auth(), "user:token");
+
+		EXPECT_EQ(c2->name(), "stable/channel");
         EXPECT_EQ(c2->location(), "mamba.com");
         EXPECT_EQ(c2->scheme(), "https");
 

@@ -39,7 +39,7 @@ namespace mamba
         const std::string& canonical_name() const;
         const validate::RepoChecker& repo_checker(MultiPackageCache& caches) const;
 
-        std::string base_url() const;
+        std::string base_url(bool with_credential = false) const;
         std::string platform_url(std::string platform, bool with_credential = true) const;
         // The pairs consist of (platform,url)
         std::vector<std::pair<std::string, std::string>> platform_urls(bool with_credential
